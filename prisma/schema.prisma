@@ -1,0 +1,142 @@
+// Scholario - Assignment & Submission Management System
+// Prisma schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  GRADED
+  RESUBMITTED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  teacherAssignments TeacherAssignment[]
+  enrollments        Enrollment[]
+  assignmentsCreated Assignment[]         @relation("AssignmentTeacher")
+  submissions        Submission[]
+
+  @@map("users")
+}
+
+model Class {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacherAssignments TeacherAssignment[]
+  enrollments        Enrollment[]
+  assignments        Assignment[]
+
+  @@map("classes")
+}
+
+model Subject {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacherAssignments TeacherAssignment[]
+  assignments        Assignment[]
+
+  @@map("subjects")
+}
+
+// Which teacher teaches which subject in which class
+model TeacherAssignment {
+  id        String   @id @default(uuid())
+  teacherId String
+  subjectId String
+  classId   String
+  createdAt DateTime @default(now())
+
+  teacher User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, subjectId, classId])
+  @@map("teacher_assignments")
+}
+
+// Which student belongs to which class
+model Enrollment {
+  id        String   @id @default(uuid())
+  studentId String
+  classId   String
+  createdAt DateTime @default(now())
+
+  student User  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId])
+  @@map("enrollments")
+}
+
+model Assignment {
+  id          String           @id @default(uuid())
+  title       String
+  description String
+  deadline    DateTime
+  maxMarks    Int
+  status      AssignmentStatus @default(DRAFT)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  teacherId String
+  subjectId String
+  classId   String
+
+  teacher     User         @relation("AssignmentTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  subject     Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  class       Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+
+  @@map("assignments")
+}
+
+model Submission {
+  id           String            @id @default(uuid())
+  content      String
+  submittedAt  DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  status       SubmissionStatus  @default(SUBMITTED)
+  marks        Int?
+  feedback     String?
+
+  assignmentId String
+  studentId    String
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@map("submissions")
+}
