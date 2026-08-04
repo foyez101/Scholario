@@ -7,10 +7,10 @@ router.get('/health', (req, res) => {
 });
 
 router.use('/auth', require('./auth.routes'));
+router.use('/admin', require('./admin.routes'));
+router.use('/assignments', require('./assignment.routes'));
 
-// Day 3 onward: mount more feature routers here, e.g.
-// router.use('/classes', require('./class.routes'));
-// router.use('/assignments', require('./assignment.routes'));
+// Day 4 onward: submissions
 // router.use('/submissions', require('./submission.routes'));
 
 module.exports = router;
