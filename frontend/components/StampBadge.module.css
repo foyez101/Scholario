@@ -1,0 +1,25 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-body), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+
+.neutral {
+  background: #eef0f3;
+  color: #4b5563;
+}
+
+.good {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+}
+
+.warn {
+  background: var(--color-amber-soft);
+  color: #92620a;
+}

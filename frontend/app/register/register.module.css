@@ -1,0 +1,28 @@
+.roleRow {
+  display: flex;
+  gap: 10px;
+}
+
+.roleOption {
+  flex: 1;
+  font-family: var(--font-body), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 11px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.roleOption:hover {
+  border-color: var(--color-primary);
+}
+
+.roleSelected {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: white;
+}
