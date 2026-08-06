@@ -1,6 +1,7 @@
 import { Sora, Inter, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '../lib/AuthContext';
+import { ToastProvider } from '../lib/ToastContext';
 import Navbar from '../components/Navbar';
 
 const sora = Sora({
@@ -30,12 +31,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${sora.variable} ${inter.variable} ${plexMono.variable}`}>
       <body>
-        <AuthProvider>
-          <Navbar />
-          <main className="container" style={{ paddingTop: 40, paddingBottom: 60 }}>
-            {children}
-          </main>
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <Navbar />
+            <main className="container" style={{ paddingTop: 40, paddingBottom: 60 }}>
+              {children}
+            </main>
+          </AuthProvider>
+        </ToastProvider>
       </body>
     </html>
   );

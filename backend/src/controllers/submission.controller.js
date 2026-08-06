@@ -184,6 +184,7 @@ async function gradeSubmission(req, res, next) {
     const updated = await prisma.submission.update({
       where: { id },
       data: { marks, feedback, status: 'GRADED' },
+      include: { student: { select: { id: true, name: true, email: true } } },
     });
 
     res.json({ success: true, submission: updated });

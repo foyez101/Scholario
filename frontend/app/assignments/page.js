@@ -35,10 +35,19 @@ export default function AssignmentsPage() {
   return (
     <div>
       <div className={styles.header}>
-        <p className={styles.eyebrow}>Assignments</p>
-        <h1 className={styles.title}>
-          {user.role === 'STUDENT' ? 'Your assignments' : 'Assignments'}
-        </h1>
+        <div className={styles.headerRow}>
+          <div>
+            <p className={styles.eyebrow}>Assignments</p>
+            <h1 className={styles.title}>
+              {user.role === 'STUDENT' ? 'Your assignments' : 'Assignments'}
+            </h1>
+          </div>
+          {user.role === 'TEACHER' && (
+            <Link href="/assignments/new" className={styles.newButton}>
+              + New assignment
+            </Link>
+          )}
+        </div>
       </div>
 
       {fetching && <p>Loading assignments…</p>}

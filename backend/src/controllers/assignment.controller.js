@@ -68,6 +68,21 @@ async function listAssignments(req, res, next) {
   }
 }
 
+// Returns the subject/class combinations this teacher is actually assigned
+// to teach - used to populate the "create assignment" form on the frontend.
+async function getTeachingOptions(req, res, next) {
+  try {
+    const teacherId = req.user.id;
+    const options = await prisma.teacherAssignment.findMany({
+      where: { teacherId },
+      include: { subject: true, class: true },
+    });
+    res.json({ success: true, options });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function getAssignment(req, res, next) {
   try {
     const { id } = req.params;
@@ -167,6 +182,11 @@ async function togglePublish(req, res, next) {
     const assignment = await prisma.assignment.update({
       where: { id },
       data: { status: newStatus },
+      include: {
+        subject: true,
+        class: true,
+        teacher: { select: { id: true, name: true } },
+      },
     });
 
     res.json({ success: true, assignment });
@@ -178,6 +198,7 @@ async function togglePublish(req, res, next) {
 module.exports = {
   createAssignment,
   listAssignments,
+  getTeachingOptions,
   getAssignment,
   updateAssignment,
   deleteAssignment,

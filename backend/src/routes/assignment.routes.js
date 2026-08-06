@@ -5,6 +5,7 @@ const router = express.Router();
 const {
   createAssignment,
   listAssignments,
+  getTeachingOptions,
   getAssignment,
   updateAssignment,
   deleteAssignment,
@@ -29,6 +30,7 @@ router.use(verifyToken);
 
 router.post('/', restrictTo('TEACHER'), createRules, runValidation, createAssignment);
 router.get('/', listAssignments); // teacher/student/admin all allowed - filtered inside the controller
+router.get('/teaching-options', restrictTo('TEACHER'), getTeachingOptions);
 router.get('/:id', getAssignment);
 router.patch('/:id', restrictTo('TEACHER'), updateAssignment);
 router.delete('/:id', restrictTo('TEACHER'), deleteAssignment);
