@@ -11,10 +11,22 @@ export default function Navbar() {
   return (
     <header className={styles.nav}>
       <div className={`container ${styles.inner}`}>
-        <Link href="/" className={styles.brand}>
-          <span className={styles.mark}>S</span>
-          <span className={styles.wordmark}>Scholario</span>
-        </Link>
+        <div className={styles.left}>
+          <Link href="/" className={styles.brand}>
+            <span className={styles.mark}>S</span>
+            <span className={styles.wordmark}>Scholario</span>
+          </Link>
+          {user && (
+            <nav className={styles.links}>
+              <Link href="/dashboard" className={styles.link}>
+                Dashboard
+              </Link>
+              <Link href="/assignments" className={styles.link}>
+                Assignments
+              </Link>
+            </nav>
+          )}
+        </div>
         {user && (
           <div className={styles.right}>
             <StampBadge value={user.role} />

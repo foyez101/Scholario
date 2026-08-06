@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '../../lib/AuthContext';
 import StampBadge from '../../components/StampBadge';
 import styles from './dashboard.module.css';
@@ -28,9 +29,15 @@ export default function DashboardPage() {
         <span>Signed in as</span>
         <StampBadge value={user.role} />
       </div>
+
+      {user.role === 'STUDENT' && (
+        <Link href="/assignments" className={styles.cta}>
+          View your assignments →
+        </Link>
+      )}
+
       <p className={styles.note}>
-        This is a starting point — role-specific views (classes, assignments, and
-        submissions) get built next.
+        More role-specific tools (classes, grading) get built next.
       </p>
     </div>
   );

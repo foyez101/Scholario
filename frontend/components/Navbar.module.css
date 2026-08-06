@@ -10,11 +10,34 @@
   height: 68px;
 }
 
+.left {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
   text-decoration: none;
+}
+
+.links {
+  display: flex;
+  gap: 20px;
+}
+
+.link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.link:hover {
+  color: var(--color-ink);
 }
 
 .mark {

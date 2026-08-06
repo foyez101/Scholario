@@ -30,6 +30,19 @@
   color: var(--color-muted);
 }
 
+.cta {
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  margin-bottom: 20px;
+}
+
+.cta:hover {
+  text-decoration: underline;
+}
+
 .note {
   font-size: 13px;
   color: var(--color-muted);
