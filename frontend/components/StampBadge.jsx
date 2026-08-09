@@ -9,12 +9,14 @@ const LABELS = {
   SUBMITTED: 'Submitted',
   GRADED: 'Graded',
   RESUBMITTED: 'Needs review',
+  NOT_SUBMITTED: 'Not submitted',
 };
 
 const TONE = {
   PUBLISHED: 'good',
   GRADED: 'good',
   RESUBMITTED: 'warn',
+  NOT_SUBMITTED: 'warn',
 };
 
 export default function StampBadge({ value }) {

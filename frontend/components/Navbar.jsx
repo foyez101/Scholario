@@ -24,6 +24,11 @@ export default function Navbar() {
               <Link href="/assignments" className={styles.link}>
                 Assignments
               </Link>
+              {user.role === 'ADMIN' && (
+                <Link href="/admin/classes" className={styles.link}>
+                  Admin
+                </Link>
+              )}
             </nav>
           )}
         </div>

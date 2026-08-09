@@ -12,6 +12,7 @@ export default function AssignmentsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [assignments, setAssignments] = useState([]);
+  const [submissionMap, setSubmissionMap] = useState({});
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState('');
 
@@ -23,12 +24,33 @@ export default function AssignmentsPage() {
 
   useEffect(() => {
     if (!user) return;
-    api
-      .get('/assignments')
-      .then((res) => setAssignments(res.data.assignments))
-      .catch(() => setError('Could not load assignments.'))
-      .finally(() => setFetching(false));
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  async function load() {
+    setFetching(true);
+    setError('');
+    try {
+      const aRes = await api.get('/assignments');
+      setAssignments(aRes.data.assignments);
+
+      // Students also need to know which of these they've already submitted,
+      // so each card can show a completed / not-completed indicator.
+      if (user.role === 'STUDENT') {
+        const sRes = await api.get('/submissions');
+        const map = {};
+        sRes.data.submissions.forEach((s) => {
+          map[s.assignmentId] = s.status;
+        });
+        setSubmissionMap(map);
+      }
+    } catch {
+      setError('Could not load assignments.');
+    } finally {
+      setFetching(false);
+    }
+  }
 
   if (loading || !user) return <p>Loading…</p>;
 
@@ -62,25 +84,32 @@ export default function AssignmentsPage() {
       )}
 
       <div className={styles.list}>
-        {assignments.map((a) => (
-          <Link href={`/assignments/${a.id}`} key={a.id} className={styles.card}>
-            <div className={styles.cardTop}>
-              <h3 className={styles.cardTitle}>{a.title}</h3>
-              <StampBadge value={a.status} />
-            </div>
-            <p className={styles.meta}>
-              {a.subject.name} &middot; {a.class.name}
-            </p>
-            <p className={styles.deadline}>
-              Due{' '}
-              {new Date(a.deadline).toLocaleDateString(undefined, {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              })}
-            </p>
-          </Link>
-        ))}
+        {assignments.map((a) => {
+          // For students, show their own completion status instead of the
+          // assignment's publish status (which is always "Published" for
+          // anything they can see anyway, so it's not useful info to them).
+          const badgeValue = user.role === 'STUDENT' ? submissionMap[a.id] || 'NOT_SUBMITTED' : a.status;
+
+          return (
+            <Link href={`/assignments/${a.id}`} key={a.id} className={styles.card}>
+              <div className={styles.cardTop}>
+                <h3 className={styles.cardTitle}>{a.title}</h3>
+                <StampBadge value={badgeValue} />
+              </div>
+              <p className={styles.meta}>
+                {a.subject.name} &middot; {a.class.name}
+              </p>
+              <p className={styles.deadline}>
+                Due{' '}
+                {new Date(a.deadline).toLocaleDateString(undefined, {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </p>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

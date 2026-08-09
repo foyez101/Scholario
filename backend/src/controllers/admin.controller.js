@@ -1,6 +1,25 @@
 const prisma = require('../config/db');
 const AppError = require('../utils/AppError');
 
+// ----- Users -----
+
+// Lists users, optionally filtered by role (e.g. ?role=TEACHER).
+// Used to populate the teacher/student dropdowns on the admin screens.
+async function listUsers(req, res, next) {
+  try {
+    const { role } = req.query;
+    const where = role ? { role } : {};
+    const users = await prisma.user.findMany({
+      where,
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json({ success: true, users });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ----- Classes -----
 
 async function createClass(req, res, next) {
@@ -96,6 +115,13 @@ async function assignTeacher(req, res, next) {
       throw new AppError('teacherId must belong to a user with role TEACHER', 400);
     }
 
+    const existing = await prisma.teacherAssignment.findFirst({
+      where: { teacherId, subjectId, classId },
+    });
+    if (existing) {
+      throw new AppError('This teacher is already assigned to that subject and class.', 409);
+    }
+
     const assignment = await prisma.teacherAssignment.create({
       data: { teacherId, subjectId, classId },
     });
@@ -141,6 +167,11 @@ async function enrollStudent(req, res, next) {
       throw new AppError('studentId must belong to a user with role STUDENT', 400);
     }
 
+    const existing = await prisma.enrollment.findFirst({ where: { studentId, classId } });
+    if (existing) {
+      throw new AppError('This student is already enrolled in that class.', 409);
+    }
+
     const enrollment = await prisma.enrollment.create({ data: { studentId, classId } });
     res.status(201).json({ success: true, enrollment });
   } catch (err) {
@@ -173,6 +204,7 @@ async function removeEnrollment(req, res, next) {
 }
 
 module.exports = {
+  listUsers,
   createClass,
   listClasses,
   updateClass,

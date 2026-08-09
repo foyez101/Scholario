@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const {
+  listUsers,
   createClass,
   listClasses,
   updateClass,
@@ -23,6 +24,8 @@ const restrictTo = require('../middleware/role.middleware');
 
 // Every route below this line requires a logged-in ADMIN.
 router.use(verifyToken, restrictTo('ADMIN'));
+
+router.get('/users', listUsers);
 
 router.post('/classes', createClass);
 router.get('/classes', listClasses);

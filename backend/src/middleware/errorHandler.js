@@ -3,8 +3,25 @@
 function errorHandler(err, req, res, next) {
   console.error(err);
 
-  const status = err.statusCode || 500;
-  const message = err.message || 'Something went wrong';
+  let status = err.statusCode || 500;
+  let message = err.message || 'Something went wrong';
+
+  // Prisma throws raw, technical errors (with code snippets in the message)
+  // for things like duplicate records. Translate the common ones into
+  // clean, user-facing text instead of leaking that straight to the frontend.
+  if (err.code === 'P2002') {
+    status = 409;
+    message = 'This already exists.';
+  } else if (err.code === 'P2025') {
+    status = 404;
+    message = 'The requested item could not be found.';
+  } else if (err.code === 'P2003') {
+    status = 400;
+    message = 'This action refers to something that no longer exists.';
+  } else if (err.name === 'PrismaClientValidationError') {
+    status = 400;
+    message = 'Some of the submitted data was invalid.';
+  }
 
   res.status(status).json({
     success: false,
