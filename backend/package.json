@@ -4,10 +4,10 @@
   "description": "Backend API for Scholario - Assignment & Submission Management System",
   "main": "server.js",
   "type": "commonjs",
-"scripts": {
-  "dev": "nodemon server.js",
-  "start": "node server.js",
-  "postinstall": "prisma generate",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
@@ -23,7 +23,7 @@
     "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "resend": "^4.8.0"
+    "nodemailer": "^6.10.1"
   },
   "devDependencies": {
     "jest": "^29.7.0",

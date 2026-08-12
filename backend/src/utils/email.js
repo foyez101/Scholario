@@ -1,14 +1,20 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Sends real mail through the account owner's own Gmail address, using an
+// "App Password" (not the real Google account password). This works for
+// any recipient - unlike a free-tier transactional email service without a
+// verified domain, which can only deliver to its own account holder.
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
 
-// Resend's free tier (no verified custom domain) can only deliver to the
-// email address the Resend account itself was signed up with. That's a
-// Resend limitation, not something this code can work around - for testing,
-// register/reset using that same email address.
 async function sendEmail({ to, subject, html }) {
-  await resend.emails.send({
-    from: 'Scholario <onboarding@resend.dev>',
+  await transporter.sendMail({
+    from: `"Scholario" <${process.env.GMAIL_USER}>`,
     to,
     subject,
     html,
