@@ -33,10 +33,17 @@ export function AuthProvider({ children }) {
   }
 
   async function register(name, email, password, role) {
+    // Registration no longer logs the person in - the account exists but
+    // is unverified until they enter the code sent to their email.
     const res = await api.post('/auth/register', { name, email, password, role });
-    localStorage.setItem('scholario_token', res.data.token);
-    setUser(res.data.user);
-    return res.data.user;
+    return res.data; // { success, message, email }
+  }
+
+  // Used by the verify-email page: once a code is confirmed, the backend
+  // returns a real token + user, so we can log them in immediately.
+  function setSession(token, userObj) {
+    localStorage.setItem('scholario_token', token);
+    setUser(userObj);
   }
 
   function logout() {
@@ -46,7 +53,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, setSession, logout }}>
       {children}
     </AuthContext.Provider>
   );

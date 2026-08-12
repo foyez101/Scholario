@@ -36,6 +36,15 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Email verification
+  isVerified              Boolean   @default(false)
+  verificationCode        String?
+  verificationCodeExpiry  DateTime?
+
+  // Password reset
+  resetPasswordCode   String?
+  resetPasswordExpiry DateTime?
+
   // Relations
   teacherAssignments TeacherAssignment[]
   enrollments        Enrollment[]

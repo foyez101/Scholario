@@ -2,9 +2,6 @@
 // Admins can't register through the API (see auth.controller.js), so this
 // script is the only way to create one. Run it once with:
 //   node prisma/create-admin.js
-//
-// This will later be folded into a full seed script (Day 5) that also
-// creates demo Teacher and Student accounts.
 
 require('dotenv').config();
 const bcrypt = require('bcrypt');
@@ -25,7 +22,9 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 10);
 
   await prisma.user.create({
-    data: { name: 'Admin', email, passwordHash, role: 'ADMIN' },
+    // isVerified: true - admin accounts skip email verification since they
+    // aren't created through the public registration flow.
+    data: { name: 'Admin', email, passwordHash, role: 'ADMIN', isVerified: true },
   });
 
   console.log('Admin account created:');
