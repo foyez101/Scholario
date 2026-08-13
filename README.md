@@ -111,11 +111,12 @@ cd Scholario
 
 ### 2. Set up Gmail API credentials (one-time)
 1. Create a project at [console.cloud.google.com](https://console.cloud.google.com) and enable the **Gmail API**.
-2. Configure the OAuth consent screen (External, keep it in **Testing** mode, add your own Gmail as a test user).
+2. Configure the OAuth consent screen (External, add your own Gmail as a test user).
 3. Create an **OAuth Client ID** (Web application), with `https://developers.google.com/oauthplayground` as an authorized redirect URI.
 4. Use [Google's OAuth Playground](https://developers.google.com/oauthplayground) with your own client ID/secret to authorize the `https://www.googleapis.com/auth/gmail.send` scope and obtain a refresh token.
+5. **Publish the OAuth consent screen to "Production"** (Audience tab → Publish app) before deploying live. Apps left in "Testing" status have refresh tokens that expire after just 7 days - fine while developing locally, but it will silently break a live deployment a week later (see [Challenges & Solutions](#challenges--solutions)).
 
-This runs entirely over HTTPS, so it isn't affected by hosts that block outbound SMTP ports (see [Challenges & Solutions](#challenges--solutions)).
+This runs entirely over HTTPS, so it isn't affected by hosts that block outbound SMTP ports.
 
 ### 3. Backend setup
 ```bash
@@ -232,76 +233,23 @@ All routes are prefixed with `/api`.
 - Free-tier hosting trade-offs: the Render backend spins down after ~15 minutes of
   inactivity (cold start delay on the next request), and the Neon database scales to
   zero when idle (a brief delay on the first query after inactivity)
-- Email is sent through a single personal Gmail account via OAuth2 in Google's
-  "Testing" publishing mode - appropriate for a project at this scale, but a production
-  system serving real users would use a dedicated transactional email service instead
+- Email is sent through a single personal Gmail account via OAuth2 - appropriate for a
+  project at this scale, but a production system serving real users at volume would use
+  a dedicated transactional email service instead
 
 ## Challenges & Solutions
 
-A few real problems came up during development, and how they were diagnosed and fixed:
-
-**Mutation responses silently missing related data**
-*Problem:* After publishing an assignment or grading a submission, the record Prisma
-returned didn't include the related subject/class/teacher/student data the frontend
-expected, so the page crashed trying to read fields off `undefined`.
-*Fix:* Added explicit `include` clauses to those `update()` calls so mutation responses
-carry the same shape as the initial fetch that populates the page.
-
-**Raw database errors reaching the UI**
-*Problem:* Attempting to assign a teacher who was already assigned to that subject/class
-threw Prisma's raw internal error (including file paths and code context) straight through
-to the screen.
-*Fix:* Added explicit duplicate checks for the most common cases, plus a central
-error-handling layer that translates remaining Prisma error codes into plain,
-user-facing messages.
-
-**A new required field locking out existing accounts**
-*Problem:* Adding email verification introduced an `isVerified` field defaulting to
-`false`. Migrating straight in would have silently locked out every account that already
-existed, including the seeded admin.
-*Fix:* Wrote a one-time backfill script that marks all pre-existing accounts as verified,
-run immediately after applying the migration in each environment.
-
-**Live backend crashing after adding a new environment-dependent feature**
-*Problem:* After deploying the email-verification feature, the live backend crashed on
-startup with `Missing API key`, since a new environment variable existed in the local
-`.env` file but hadn't been added to the hosting platform yet.
-*Fix:* Added the missing variable in the hosting dashboard - and a reminder to add new
-environment variables to every environment a feature touches, not just the local one.
-
-**A stale Prisma Client on the live server after a schema change**
-*Problem:* After adding new database fields, registration worked locally but failed on
-the live deployment with a vague "submitted data was invalid" error - the live server was
-still running a Prisma Client generated before the schema change.
-*Fix:* Added a `postinstall` script (`prisma generate`) to `package.json`, so the Prisma
-Client is always freshly regenerated on every deploy, not just when the schema happens to
-change during that particular build.
-
-**Finding a genuinely free way to email any real user**
-*Problem:* This took several iterations. The first provider (Resend) worked, but its
-free tier without a verified custom domain only delivers to the email address the
-account itself is registered with - unusable for real registrations from other people.
-Switching to sending directly through Gmail's SMTP server hit a different wall: Render's
-free tier blocks all outbound SMTP ports (25, 465, 587) as an anti-abuse measure, so
-every send timed out in production despite working perfectly locally. A third attempt
-with another transactional email provider stalled on an account phone-verification step.
-*Fix:* Switched to sending through the **Gmail API directly** (not SMTP) using OAuth2 -
-this travels over ordinary HTTPS, so it isn't affected by the SMTP port block, it sends
-from a real Gmail account so there's no recipient restriction, and Google allows this for
-personal projects in "Testing" publishing mode with no app review needed.
-
-**Free-tier cold starts looking like a broken login**
-*Problem:* The backend's free hosting tier spins down after inactivity; the next request
-can take 30–60 seconds, which risked looking like the login page was simply stuck.
-*Fix:* Added a request timeout, and a "still connecting, the server may be waking up"
-hint that appears if a request takes more than a few seconds, so the delay is explained
-instead of silent.
-
-**Early commit history not reading professionally**
-*Problem:* The first two commits used casual "Day 1"/"Day 2" style messages.
-*Fix:* Used an interactive rebase (`git rebase -i --root`) to reword them to plain,
-descriptive messages, then force-pushed once, early on, while the repository was still
-solo with no collaborators to disrupt.
+| Problem | Fix |
+|---|---|
+| Mutation responses (publish, grade) were missing related data, crashing the frontend | Added explicit Prisma `include` clauses to those `update()` calls |
+| Raw Prisma errors (e.g. duplicate teacher assignment) leaked straight to the UI | Added explicit duplicate checks, plus a central handler that translates Prisma error codes into clean messages |
+| A new `isVerified` field would have locked out every existing account | Wrote a one-time backfill script to mark pre-existing accounts as verified |
+| Live backend crashed on deploy - a new feature's env var wasn't set on the host | Added the variable in Render's dashboard; now double-check every environment when adding one |
+| Stale Prisma Client on Render after a schema change caused a vague validation error | Added a `postinstall: prisma generate` script so it regenerates on every deploy |
+| Free email delivery only reached one inbox - Resend's recipient limit, then Render blocking outbound SMTP, then a stalled provider phone-verification | Switched to sending via the **Gmail API over HTTPS** (not SMTP) using OAuth2 |
+| OAuth refresh token silently expires after 7 days in "Testing" publishing mode | Published the OAuth app to "Production" and issued a fresh token under it |
+| Free-tier cold starts made the login page look stuck | Added a request timeout and a "server may be waking up" hint |
+| Early commits used casual "Day 1 / Day 2" messages | Reworded via `git rebase -i --root`, force-pushed once, early on, before anyone forked or cloned the repo |
 
 ## Author
 
