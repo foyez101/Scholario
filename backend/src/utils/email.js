@@ -1,23 +1,46 @@
-const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 
-// Sends real mail through the account owner's own Gmail address, using an
-// "App Password" (not the real Google account password). This works for
-// any recipient - unlike a free-tier transactional email service without a
-// verified domain, which can only deliver to its own account holder.
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
+// Sends real mail through the Gmail API (HTTPS), using an OAuth2 refresh
+// token tied to the account owner's own Gmail account. Unlike raw SMTP,
+// this isn't blocked by hosting platforms that restrict outbound SMTP
+// ports, and unlike a free-tier email service without a verified domain,
+// it can deliver to any real recipient.
+const oAuth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  'https://developers.google.com/oauthplayground'
+);
+
+oAuth2Client.setCredentials({
+  refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
 });
 
-async function sendEmail({ to, subject, html }) {
-  await transporter.sendMail({
-    from: `"Scholario" <${process.env.GMAIL_USER}>`,
-    to,
-    subject,
+const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
+
+function encodeMessage({ to, subject, html }) {
+  const messageParts = [
+    `From: "Scholario" <${process.env.GMAIL_USER}>`,
+    `To: ${to}`,
+    'Content-Type: text/html; charset=utf-8',
+    'MIME-Version: 1.0',
+    `Subject: ${subject}`,
+    '',
     html,
+  ];
+  const message = messageParts.join('\n');
+
+  return Buffer.from(message)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+async function sendEmail({ to, subject, html }) {
+  const raw = encodeMessage({ to, subject, html });
+  await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: { raw },
   });
 }
 
