@@ -42,7 +42,7 @@ Three roles use the system, each with their own permissions and views:
 **Authentication & Security**
 - JWT-based authentication with bcrypt password hashing
 - Role-based route protection, enforced on the backend (not just hidden in the UI)
-- Email verification — a 6-digit code is sent to a new user's email; the account can't log in until it's verified
+- Email verification — a 6-digit code is emailed to any new user, to any real email address; the account can't log in until it's verified
 - Password reset via emailed code
 - Password strength requirements (minimum length, uppercase, lowercase, number, special character), enforced on both frontend and backend
 - Confirm-password field and a show/hide password toggle on every password field
@@ -61,7 +61,7 @@ Three roles use the system, each with their own permissions and views:
 | Database | PostgreSQL |
 | ORM | Prisma |
 | Authentication | JWT (jsonwebtoken) + bcrypt |
-| Email | Resend |
+| Email | Gmail API (OAuth2), via `googleapis` |
 | Validation | express-validator |
 | HTTP client | axios |
 | Hosting | Vercel (frontend) · Render (backend) · Neon (database) |
@@ -100,7 +100,7 @@ Scholario/
 ### Prerequisites
 - [Node.js](https://nodejs.org) (LTS)
 - [PostgreSQL](https://www.postgresql.org/download/) installed locally, **or** a free [Neon](https://neon.tech) connection string
-- A free [Resend](https://resend.com) account and API key (for email verification / password reset)
+- A Google Cloud project with the Gmail API enabled and OAuth2 credentials (see below) — used to send verification/reset emails from your own Gmail account
 - Git
 
 ### 1. Clone the repository
@@ -109,7 +109,15 @@ git clone https://github.com/foyez101/Scholario.git
 cd Scholario
 ```
 
-### 2. Backend setup
+### 2. Set up Gmail API credentials (one-time)
+1. Create a project at [console.cloud.google.com](https://console.cloud.google.com) and enable the **Gmail API**.
+2. Configure the OAuth consent screen (External, keep it in **Testing** mode, add your own Gmail as a test user).
+3. Create an **OAuth Client ID** (Web application), with `https://developers.google.com/oauthplayground` as an authorized redirect URI.
+4. Use [Google's OAuth Playground](https://developers.google.com/oauthplayground) with your own client ID/secret to authorize the `https://www.googleapis.com/auth/gmail.send` scope and obtain a refresh token.
+
+This runs entirely over HTTPS, so it isn't affected by hosts that block outbound SMTP ports (see [Challenges & Solutions](#challenges--solutions)).
+
+### 3. Backend setup
 ```bash
 cd backend
 npm install
@@ -121,10 +129,13 @@ DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/scholario"
 JWT_SECRET=replace_with_a_long_random_string
 JWT_EXPIRES_IN=7d
 PORT=5000
-RESEND_API_KEY=your_resend_api_key
+GMAIL_USER=youraddress@gmail.com
+GOOGLE_CLIENT_ID=your_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
+GOOGLE_REFRESH_TOKEN=your_refresh_token
 ```
 
-### 3. Database setup
+### 4. Database setup
 ```bash
 npx prisma migrate dev
 node prisma/create-admin.js
@@ -137,13 +148,13 @@ by design (see [Assumptions](#assumptions)).
 > (e.g. upgrading an existing setup), also run `node prisma/verify-existing-users.js`
 > once, so those accounts aren't locked out by the new email-verification requirement.
 
-### 4. Run the backend
+### 5. Run the backend
 ```bash
 npm run dev
 ```
 API available at `http://localhost:5000/api`.
 
-### 5. Frontend setup
+### 6. Frontend setup
 ```bash
 cd ../frontend
 npm install
@@ -154,7 +165,7 @@ cp .env.local.example .env.local
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ```
 
-### 6. Run the frontend
+### 7. Run the frontend
 ```bash
 npm run dev
 ```
@@ -169,14 +180,9 @@ App available at `http://localhost:3000`.
 | Student | *register a new account* | — |
 
 Teacher and Student accounts aren't pre-seeded yet (see [Known Limitations](#known-limitations)).
-To try those roles: register a new account at `/register` using **the same email address
-your Resend account is registered with** (see the note on email delivery below), verify it
-with the code sent to that inbox, then log in as Admin to assign the teacher to a
-subject/class, or enroll the student into a class.
-
-> **Note on email delivery:** without a verified custom domain, Resend's free tier can only
-> deliver to the email address the Resend account itself was signed up with — not to
-> arbitrary emails. This is a limitation of the email provider, not the application.
+Register a new account at `/register` with any real email address, verify it with the
+code sent to that inbox, then log in as Admin to assign the teacher to a subject/class,
+or enroll the student into a class.
 
 ## Running Tests
 
@@ -223,11 +229,12 @@ All routes are prefixed with `/api`.
 - No Swagger/OpenAPI documentation page yet
 - No seed script for demo Teacher/Student accounts — only the Admin account is seeded;
   other roles must be created manually via registration
-- Email delivery is limited by Resend's free tier: without a verified custom domain, it can
-  only send to the email address the Resend account itself is registered with
 - Free-tier hosting trade-offs: the Render backend spins down after ~15 minutes of
   inactivity (cold start delay on the next request), and the Neon database scales to
   zero when idle (a brief delay on the first query after inactivity)
+- Email is sent through a single personal Gmail account via OAuth2 in Google's
+  "Testing" publishing mode - appropriate for a project at this scale, but a production
+  system serving real users would use a dedicated transactional email service instead
 
 ## Challenges & Solutions
 
@@ -257,11 +264,31 @@ run immediately after applying the migration in each environment.
 
 **Live backend crashing after adding a new environment-dependent feature**
 *Problem:* After deploying the email-verification feature, the live backend crashed on
-startup with `Missing API key`, since the new `RESEND_API_KEY` variable existed in the
-local `.env` file but hadn't been added to the hosting platform yet.
-*Fix:* Added the missing variable in the hosting dashboard, which triggered a clean
-redeploy — and a reminder to add new environment variables to every environment a
-feature touches, not just the local one.
+startup with `Missing API key`, since a new environment variable existed in the local
+`.env` file but hadn't been added to the hosting platform yet.
+*Fix:* Added the missing variable in the hosting dashboard - and a reminder to add new
+environment variables to every environment a feature touches, not just the local one.
+
+**A stale Prisma Client on the live server after a schema change**
+*Problem:* After adding new database fields, registration worked locally but failed on
+the live deployment with a vague "submitted data was invalid" error - the live server was
+still running a Prisma Client generated before the schema change.
+*Fix:* Added a `postinstall` script (`prisma generate`) to `package.json`, so the Prisma
+Client is always freshly regenerated on every deploy, not just when the schema happens to
+change during that particular build.
+
+**Finding a genuinely free way to email any real user**
+*Problem:* This took several iterations. The first provider (Resend) worked, but its
+free tier without a verified custom domain only delivers to the email address the
+account itself is registered with - unusable for real registrations from other people.
+Switching to sending directly through Gmail's SMTP server hit a different wall: Render's
+free tier blocks all outbound SMTP ports (25, 465, 587) as an anti-abuse measure, so
+every send timed out in production despite working perfectly locally. A third attempt
+with another transactional email provider stalled on an account phone-verification step.
+*Fix:* Switched to sending through the **Gmail API directly** (not SMTP) using OAuth2 -
+this travels over ordinary HTTPS, so it isn't affected by the SMTP port block, it sends
+from a real Gmail account so there's no recipient restriction, and Google allows this for
+personal projects in "Testing" publishing mode with no app review needed.
 
 **Free-tier cold starts looking like a broken login**
 *Problem:* The backend's free hosting tier spins down after inactivity; the next request
@@ -269,12 +296,6 @@ can take 30–60 seconds, which risked looking like the login page was simply st
 *Fix:* Added a request timeout, and a "still connecting, the server may be waking up"
 hint that appears if a request takes more than a few seconds, so the delay is explained
 instead of silent.
-
-**Testing email delivery without a verified domain**
-*Problem:* Resend's free tier without a verified custom domain only delivers to the
-email address the Resend account itself is registered with.
-*Fix:* Documented this clearly as a known limitation rather than working around it;
-testing uses the account owner's own email address.
 
 **Early commit history not reading professionally**
 *Problem:* The first two commits used casual "Day 1"/"Day 2" style messages.
